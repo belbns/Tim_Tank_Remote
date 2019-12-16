@@ -31,25 +31,22 @@ import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
-   public static final int REQUEST_LOCATION_ENABLE_CODE = 101;
+    public static final int REQUEST_BLUETOOTH_ENABLE_CODE = 101;
+    public static final int REQUEST_LOCATION_ENABLE_CODE = 101;
     public static final int SEARCH_REQUEST_CODE = 191;
     private static final String TAG = "MainActivity";
 
     private static final String fileNameString = "my_preferences";
-
     private static SharedPreferences sharedPreferences;
     private String mobAddress;
     private String mobName;
 
-    private BluetoothDevice bluetoothDevice;
-    private boolean mScanning;
-    private BluetoothLeScanner bluetoothLeScanner;
     private BluetoothAdapter mBluetoothAdapter;
-
-    //private BluetoothGattCharacteristic mNotifyCharacteristic;
-    private boolean mConnected = false;
-
+    private BluetoothDevice bluetoothDevice;
     private BluetoothLEService mBluetoothLEService;
+
+    private boolean mBound = false;
+    private boolean mConnected = false;
 
 
     @Override
@@ -74,7 +71,7 @@ public class MainActivity extends AppCompatActivity {
 
 
         // Load SearchActivity for search BLE device
-        final Button but_find = (Button) findViewById(R.id.butFind);
+        final Button but_find = findViewById(R.id.butFind);
         but_find.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -88,12 +85,18 @@ public class MainActivity extends AppCompatActivity {
         but_connect.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                /*
                 Intent gattServiceIntent = new Intent(MainActivity.this,
                         BluetoothLEService.class);
                 bindService(gattServiceIntent, mServiceConnection, BIND_AUTO_CREATE);
-                final boolean result =
-                        mBluetoothLEService.connect(mobAddress);
-                Log.d(TAG, "Connect request result=" + result);
+                */
+                if (mBluetoothLEService != null) {
+                    final boolean result = mBluetoothLEService.connect(mobAddress);
+                    Log.d(TAG, "mBluetoothLEService - connect= " + result);
+                } else {
+                    Log.d(TAG, "mBluetoothLEService is null! ");
+                }
+
 
                 /*
                 if (bluetoothDevice != null) {
@@ -114,6 +117,7 @@ public class MainActivity extends AppCompatActivity {
 
             }
         });
+
         but_connect.setClickable(false);
 
         Context context = this;
@@ -123,7 +127,7 @@ public class MainActivity extends AppCompatActivity {
 
         if (!mBluetoothAdapter.enable()) {
             Intent intent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-            startActivityForResult(intent, Constants.REQUEST_BLUETOOTH_ENABLE_CODE);
+            startActivityForResult(intent, REQUEST_BLUETOOTH_ENABLE_CODE);
         }
 
         sharedPreferences = getApplicationContext().getSharedPreferences(fileNameString, MODE_PRIVATE);
@@ -144,19 +148,38 @@ public class MainActivity extends AppCompatActivity {
         */
     }
 
+    @Override
+    protected void onStart() {
+        super.onStart();
+
+        Intent gattServiceIntent = new Intent(this, BluetoothLEService.class);
+        bindService(gattServiceIntent, mServiceConnection, BIND_AUTO_CREATE);
+
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if (mBound) {
+            unbindService(mServiceConnection);
+            mBound = false;
+        }
+    }
     // Result of SearchActivity
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         Log.d(TAG, "onActivityResult");
+
+        if ((requestCode == REQUEST_BLUETOOTH_ENABLE_CODE) &&
+                (resultCode == RESULT_CANCELED)) {
+            finish();
+        }
+
         if ((requestCode == SEARCH_REQUEST_CODE) && (resultCode == RESULT_OK)) {
             //Retrieve data in the intent
             String addressValue = data.getStringExtra("ADDRESS");
             String nameValue = data.getStringExtra("NAME");
-            final TextView tvn = findViewById(R.id.textLeName);
-            tvn.setText(nameValue);
-            final TextView tva = findViewById(R.id.textInfo);
-            tva.setText(addressValue);
             Log.d(TAG, "onActivityResult: " + nameValue + ", " + addressValue);
             if (addressValue != null) {
                 bluetoothDevice = mBluetoothAdapter.getRemoteDevice(addressValue);
@@ -173,7 +196,6 @@ public class MainActivity extends AppCompatActivity {
                     findViewById(R.id.butConnect).setClickable(true);
                 }
             }
-
         }
     }
 /*
@@ -193,17 +215,23 @@ public class MainActivity extends AppCompatActivity {
     private final ServiceConnection mServiceConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName componentName, IBinder service) {
-            mBluetoothLEService = ((BluetoothLEService.LocalBinder) service).getService();
+            BluetoothLEService.LocalBinder binder = (BluetoothLEService.LocalBinder) service;
+            mBluetoothLEService = binder.getService();
             if (!mBluetoothLEService.initialize()) {
-                Log.e(TAG, "Unable to initialize Bluetooth");
+                Log.d(TAG, "Unable to initialize BluetoothLEService");
                 finish();
             }
-            //mBluetoothLEService.connect(bluetoothDevice.getAddress());
+            else {
+                mBound = true;
+            }
+            //mBluetoothLEService.connect(mobAddress);
         }
 
         @Override
         public void onServiceDisconnected(ComponentName componentName) {
+            Log.d(TAG, "BluetoothLEService disconnected");
             mBluetoothLEService = null;
+            mBound = false;
         }
     };
 
@@ -218,12 +246,11 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onReceive(Context context, Intent intent) {
         final String action = intent.getAction();
+            Log.d(TAG, "Action received: " + action);
         if (BluetoothLEService.ACTION_GATT_CONNECTED.equals(action)) {
             mConnected = true;
             //updateConnectionState("connected");
             //invalidateOptionsMenu();
-            Log.d(TAG, "Action received: " + action);
-
             } else if (BluetoothLEService.ACTION_GATT_DISCONNECTED.equals(action)) {
                 mConnected = false;
                 updateConnectionState("disconnected");
@@ -247,7 +274,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-    /*
+
     @Override
     protected void onResume() {
         super.onResume();
@@ -255,18 +282,19 @@ public class MainActivity extends AppCompatActivity {
         if (ContextCompat.checkSelfPermission(this.getApplicationContext(),
                 android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
         } else {
-            ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.ACCESS_FINE_LOCATIO
-                            N},
-                    Constants.REQUEST_LOCATION_ENABLE_CODE);
+            ActivityCompat.requestPermissions(this,
+                    new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION},
+                    REQUEST_LOCATION_ENABLE_CODE);
         }
 
         if (!getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
-            Toast.makeText(this, "Your devices that don't support BLE", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "Your devices that don't support BLE",
+                    Toast.LENGTH_LONG).show();
             finish();
         }
         if (!mBluetoothAdapter.enable()) {
             Intent intent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-            startActivityForResult(intent, Constants.REQUEST_BLUETOOTH_ENABLE_CODE);
+            startActivityForResult(intent, REQUEST_BLUETOOTH_ENABLE_CODE);
         }
         registerReceiver(mGattUpdateReceiver, GattUpdateIntentFilter());
         if (mBluetoothLEService != null) {
@@ -274,17 +302,17 @@ public class MainActivity extends AppCompatActivity {
             Log.d(TAG, "Connect request result=" + result);
         }
     }
-*/
+
     @Override
     protected void onPause() {
         super.onPause();
-        //unregisterReceiver(mGattUpdateReceiver);
+        unregisterReceiver(mGattUpdateReceiver);
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        //unbindService(mServiceConnection);
+        unbindService(mServiceConnection);
         mBluetoothLEService = null;
     }
 

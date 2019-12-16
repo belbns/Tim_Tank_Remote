@@ -23,10 +23,12 @@ import java.util.List;
 import java.util.UUID;
 
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
-import static com.example.timtankremote.SampleGattAttributes.FFE0_SERVICE_UUID;
-import static com.example.timtankremote.SampleGattAttributes.FFE1_CHAR_UUID;
+
 
 public class BluetoothLEService extends Service {
+
+    public static final String FFE0_SERVICE_UUID = "0000ffe0-0000-1000-8000-00805f9b34fb";
+    public static final String FFE1_CHAR_UUID    = "0000ffe1-0000-1000-8000-00805f9b34fb";
 
     public final static String ACTION_GATT_CONNECTED =
             "ACTION_GATT_CONNECTED";
@@ -201,10 +203,12 @@ public class BluetoothLEService extends Service {
     private void broadcastUpdate(final String action,
             final BluetoothGattCharacteristic characteristic) {
         final Intent intent = new Intent(action);
+        Log.d(TAG, "broadcastUpdate: " + characteristic.getUuid().toString());
         // send only FFE1 messaages
         if (FFE1_CHAR_UUID.equals(characteristic.getUuid().toString())) {
             final String mob_msg = characteristic.getStringValue(0);
             intent.putExtra(EXTRA_DATA, mob_msg);
+            sendBroadcast(intent);
         }
     }
 

@@ -33,22 +33,14 @@ import java.util.List;
 
 public class SearchActivity extends AppCompatActivity {
 
+    public static final int SCAN_PERIOD = 8000;
     private static final String TAG = "SearchActivity";
-    private static final String fileNameString = "my_preferences";
 
-    private static SharedPreferences sharedPreferences;
-    private String mobAddress;
-
-    BluetoothDevice bluetoothDevice;
     private boolean mScanning;
     private BluetoothLeScanner bluetoothLeScanner;
     private BluetoothAdapter mBluetoothAdapter;
 
-    private BluetoothGattCharacteristic mNotifyCharacteristic;
-    private boolean mConnected = false;
-
     ListView listViewLE;
-
     List<BluetoothDevice> listBluetoothDevice;
     ListAdapter adapterLeScanResult;
 
@@ -102,22 +94,22 @@ public class SearchActivity extends AppCompatActivity {
                         return;
                     }
 
-                    final BluetoothDevice device =
+                    final BluetoothDevice sel_device =
                             (BluetoothDevice) parent.getItemAtPosition(position);
 
-                    String msg = device.getAddress() + "\n"
-                            + device.getBluetoothClass().toString() + "\n"
-                            + getBTDeviceType(device);
+                    String msg = sel_device.getAddress() + "\n"
+                            + sel_device.getBluetoothClass().toString() + "\n"
+                            + getBTDeviceType(sel_device);
 
                     new AlertDialog.Builder(SearchActivity.this)
-                            .setTitle(device.getName())
+                            .setTitle(sel_device.getName())
                             .setMessage(msg)
                             .setPositiveButton("YES", new DialogInterface.OnClickListener() {
                                 @Override
                                 public void onClick(DialogInterface dialog, int which) {
                                     Intent intent = new Intent();
-                                    intent.putExtra("ADDRESS", device.getAddress());
-                                    intent.putExtra("NAME", device.getName());
+                                    intent.putExtra("ADDRESS", sel_device.getAddress());
+                                    intent.putExtra("NAME", sel_device.getName());
                                     setResult(RESULT_OK, intent);
                                     SearchActivity.this.finish();
                                 }
@@ -169,26 +161,17 @@ public class SearchActivity extends AppCompatActivity {
         bluetoothLeScanner = mBluetoothAdapter.getBluetoothLeScanner();
         Handler mHandler = new Handler();
         if (enable) {
-            //findViewById(R.id.butSearch).setClickable(false);
-            //findViewById(R.id.butExit).setClickable(false);
             List<ScanFilter> scanFilters = new ArrayList<>();
             final ScanSettings settings = new ScanSettings.Builder().build();
-/*
-            ScanFilter scanFilter = new ScanFilter.Builder().setServiceUuid(
-                    ParcelUuid.fromString(SampleGattAttributes.UUID_????
-            scanFilters.add(scanFilter);
-*/
             mHandler.postDelayed(new Runnable() {
                 @Override
                 public void run() {
                     mScanning = false;
                     findViewById(R.id.progressBar).setVisibility(View.INVISIBLE);
                     bluetoothLeScanner.stopScan(scanCallback);
-                    //findViewById(R.id.butSearch).setClickable(true);
-                    //findViewById(R.id.butExit).setClickable(true);
                     setLocalViews(mScanning);
                 }
-            }, Constants.SCAN_PERIOD);
+            }, SCAN_PERIOD);
             mScanning = true;
             setLocalViews(mScanning);
             bluetoothLeScanner.startScan(scanFilters, settings, scanCallback);
