@@ -168,11 +168,13 @@ public class BluetoothLEService extends Service {
     public BluetoothLEService() {
     }
 
+    /*
     public List<BluetoothGattService> getSupportedGattServices() {
         if (mBluetoothGatt == null) return null;
 
         return mBluetoothGatt.getServices();
     }
+    */
 
     public void sendMessage(String msg) {
         if (mConnectionState != STATE_CONNECTED) {
@@ -204,12 +206,15 @@ public class BluetoothLEService extends Service {
             final BluetoothGattCharacteristic characteristic) {
         final Intent intent = new Intent(action);
         Log.d(TAG, "broadcastUpdate: " + characteristic.getUuid().toString());
-        // send only FFE1 messaages
+        /* send only FFE1 messaages
         if (FFE1_CHAR_UUID.equals(characteristic.getUuid().toString())) {
             final String mob_msg = characteristic.getStringValue(0);
             intent.putExtra(EXTRA_DATA, mob_msg);
             sendBroadcast(intent);
-        }
+        } */
+        intent.putExtra(EXTRA_DATA, characteristic.getStringValue(0));
+        sendBroadcast(intent);
+
     }
 
     @Override
@@ -269,6 +274,7 @@ public class BluetoothLEService extends Service {
         return true;
     }
 
+    /*
     public void readCharacteristic(@NonNull BluetoothGattCharacteristic bluetoothGattCharacteristic) {
         mBluetoothGatt.readCharacteristic(bluetoothGattCharacteristic);
     }
@@ -277,7 +283,7 @@ public class BluetoothLEService extends Service {
             boolean enabled) {
         mBluetoothGatt.setCharacteristicNotification(characteristic, enabled);
     }
-
+    */
 
     public class LocalBinder extends Binder {
         BluetoothLEService getService() {

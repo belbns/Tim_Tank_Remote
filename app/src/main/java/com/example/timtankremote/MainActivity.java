@@ -18,18 +18,30 @@ import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.util.HashMap;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
+
+    public static final int battAdcMin = 2200;
+    public static final int battMeterMax = 140;
+    public static final int battMeterDiv = 5;
+    public static final int battMeterLow = 40;
+    public static final int battMeterHigh = 80;
 
     public static final int REQUEST_BLUETOOTH_ENABLE_CODE = 101;
     public static final int REQUEST_LOCATION_ENABLE_CODE = 101;
@@ -47,7 +59,50 @@ public class MainActivity extends AppCompatActivity {
 
     private boolean mBound = false;
     private boolean mConnected = false;
+    private boolean mConnPaused = false;
 
+    // Mobile device
+    private class Motors {
+        public String state;
+        public int queueLen;
+        public int vleft_set;
+        public int vright_set;
+        public int vleft_real;
+        public int vright_real;
+        public Motors() {
+            state = "s";
+            queueLen = vleft_real = vleft_set = vright_real = vright_set = 0;
+        }
+    }
+
+    private class Servo {
+        public int queueLen;
+        public int angle_set;
+        public int angle_real;
+        public Servo() {
+            queueLen = angle_real = angle_set = 0;
+        }
+    }
+
+    private class Stepper {
+        public int queueLen;
+        public String state;
+        public int angle_set;
+        public int angle_real;
+        public Stepper() {
+            state = "s";
+            queueLen = angle_real = angle_set = 0;
+        }
+    }
+
+    private Motors motors;
+    private Servo servo;
+    private Stepper stepper;
+    private int Leds[];
+    private int v3v3 = 0;
+    private int v6v = 0;
+    private int vP5 = 0;
+    private int vP6 = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -79,46 +134,36 @@ public class MainActivity extends AppCompatActivity {
                 startActivityForResult(intent, SEARCH_REQUEST_CODE);
             }
         });
+        but_find.setTextColor(Color.GREEN);
 
 
         final Button but_connect = (Button) findViewById(R.id.butConnect);
         but_connect.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                /*
-                Intent gattServiceIntent = new Intent(MainActivity.this,
-                        BluetoothLEService.class);
-                bindService(gattServiceIntent, mServiceConnection, BIND_AUTO_CREATE);
-                */
                 if (mBluetoothLEService != null) {
-                    final boolean result = mBluetoothLEService.connect(mobAddress);
-                    Log.d(TAG, "mBluetoothLEService - connect= " + result);
+                    if (!mConnected) {
+                        registerReceiver(mGattUpdateReceiver, GattUpdateIntentFilter());
+                        final boolean result = mBluetoothLEService.connect(mobAddress);
+                        Log.d(TAG, "mBluetoothLEService - connect= " + result);
+                    }
+                    else {
+                        mBluetoothLEService.disconnect();
+                        unregisterReceiver(mGattUpdateReceiver);
+                        mConnected = false;
+                        updateConnectionState();
+                        Log.d(TAG, "mBluetoothLEService - disconnect");
+                    }
                 } else {
                     Log.d(TAG, "mBluetoothLEService is null! ");
                 }
-
-
-                /*
-                if (bluetoothDevice != null) {
-
-                    Intent gattServiceIntent = new Intent(MainActivity.this,
-                            BluetoothLEService.class);
-                    bindService(gattServiceIntent, mServiceConnection, BIND_AUTO_CREATE);
-
-                    // register mGattUpdateReceiver
-                    registerReceiver(mGattUpdateReceiver, GattUpdateIntentFilter());
-                    if (mBluetoothLEService != null) {
-                        final boolean result =
-                                mBluetoothLEService.connect(mobAddress);
-                        Log.d(TAG, "Connect request result=" + result);
-                    }
-                }
-                */
-
             }
         });
 
         but_connect.setClickable(false);
+        but_connect.setTextColor(Color.GRAY);
+
+        Leds = new int[4];
 
         Context context = this;
         BluetoothManager bluetoothManager = (BluetoothManager)
@@ -139,13 +184,9 @@ public class MainActivity extends AppCompatActivity {
                 final TextView tvn = findViewById(R.id.textLeName);
                 tvn.setText(mobName);
                 but_connect.setClickable(true);
+                but_connect.setTextColor(Color.GREEN);
             }
         }
-        /*
-        Intent gattServiceIntent = new Intent(MainActivity.this,
-                BluetoothLEService.class);
-        bindService(gattServiceIntent, mServiceConnection, BIND_AUTO_CREATE);
-        */
     }
 
     @Override
@@ -154,7 +195,6 @@ public class MainActivity extends AppCompatActivity {
 
         Intent gattServiceIntent = new Intent(this, BluetoothLEService.class);
         bindService(gattServiceIntent, mServiceConnection, BIND_AUTO_CREATE);
-
     }
 
     @Override
@@ -180,12 +220,15 @@ public class MainActivity extends AppCompatActivity {
             //Retrieve data in the intent
             String addressValue = data.getStringExtra("ADDRESS");
             String nameValue = data.getStringExtra("NAME");
+            final Button btc = findViewById(R.id.butConnect);
             Log.d(TAG, "onActivityResult: " + nameValue + ", " + addressValue);
             if (addressValue != null) {
                 bluetoothDevice = mBluetoothAdapter.getRemoteDevice(addressValue);
                 if (bluetoothDevice != null) {
                     final TextView tvl = findViewById(R.id.textLeName);
                     tvl.setText(nameValue);
+                    final TextView tvi = findViewById(R.id.textInfo);
+                    tvi.setText(addressValue);
                     // save device to the shared preferences
                     SharedPreferences.Editor editor =sharedPreferences.edit();
                     editor.putString("MOB_ADDRESS", addressValue);
@@ -193,25 +236,16 @@ public class MainActivity extends AppCompatActivity {
                     editor.apply();
                     mobAddress = addressValue;
                     mobName = nameValue;
-                    findViewById(R.id.butConnect).setClickable(true);
+                    btc.setClickable(true);
+                    btc.setTextColor(Color.GREEN);
+                } else {
+                    btc.setClickable(false);
+                    btc.setTextColor(Color.GRAY);
                 }
             }
         }
     }
-/*
-    protected  void connectService() {
-        if (mNotifyCharacteristic != null) {
-            final int charaProp = mNotifyCharacteristic.getProperties();
-            if ((charaProp | BluetoothGattCharacteristic.PROPERTY_READ) > 0) {
-                mBluetoothLEService.readCharacteristic(mNotifyCharacteristic);
-            }
-            if ((charaProp | BluetoothGattCharacteristic.PROPERTY_NOTIFY) > 0) {
-                mBluetoothLEService.setCharacteristicNotification(mNotifyCharacteristic,
-                        true);
-            }
-        }
-    }
-*/
+
     private final ServiceConnection mServiceConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName componentName, IBinder service) {
@@ -224,7 +258,6 @@ public class MainActivity extends AppCompatActivity {
             else {
                 mBound = true;
             }
-            //mBluetoothLEService.connect(mobAddress);
         }
 
         @Override
@@ -246,21 +279,20 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onReceive(Context context, Intent intent) {
         final String action = intent.getAction();
+            final Button btc = findViewById(R.id.butConnect);
+            final Button btf = findViewById(R.id.butFind);
             Log.d(TAG, "Action received: " + action);
         if (BluetoothLEService.ACTION_GATT_CONNECTED.equals(action)) {
             mConnected = true;
-            //updateConnectionState("connected");
-            //invalidateOptionsMenu();
-            } else if (BluetoothLEService.ACTION_GATT_DISCONNECTED.equals(action)) {
-                mConnected = false;
-                updateConnectionState("disconnected");
-                //clearUI();
-            } else if (BluetoothLEService.ACTION_GATT_SERVICES_DISCOVERED.equals
-                    (action)) {
+            updateConnectionState();
+        } else if (BluetoothLEService.ACTION_GATT_DISCONNECTED.equals(action)) {
+            mConnected = false;
+            updateConnectionState();
+        } else if (BluetoothLEService.ACTION_GATT_SERVICES_DISCOVERED.equals(action)) {
                 //displayGattServices(mBluetoothLEService.getSupportedGattServices());
-            } else if (BluetoothLEService.ACTION_DATA_AVAILABLE.equals(action)) {
-                displayData(intent.getStringExtra(BluetoothLEService.EXTRA_DATA));
-            }
+        } else if (BluetoothLEService.ACTION_DATA_AVAILABLE.equals(action)) {
+            processData(intent.getStringExtra(BluetoothLEService.EXTRA_DATA));
+        }
         }
     };
 
@@ -296,17 +328,23 @@ public class MainActivity extends AppCompatActivity {
             Intent intent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
             startActivityForResult(intent, REQUEST_BLUETOOTH_ENABLE_CODE);
         }
+
         registerReceiver(mGattUpdateReceiver, GattUpdateIntentFilter());
-        if (mBluetoothLEService != null) {
+
+        if (mConnPaused && (mBluetoothLEService != null)) {
             final boolean result = mBluetoothLEService.connect(bluetoothDevice.getAddress());
-            Log.d(TAG, "Connect request result=" + result);
+            mConnPaused = false;
+            Log.d(TAG, "Reconnect to " + bluetoothDevice.getAddress() + ", result=" + result);
         }
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        unregisterReceiver(mGattUpdateReceiver);
+        if (mConnected) {
+            unregisterReceiver(mGattUpdateReceiver);
+            mConnPaused = true;
+        }
     }
 
     @Override
@@ -316,55 +354,73 @@ public class MainActivity extends AppCompatActivity {
         mBluetoothLEService = null;
     }
 
-    private void updateConnectionState(final String status) {
+    private void updateConnectionState() {
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                //final TextView tvs = findViewById(R.id.deviceState);
-                //tvs.setText(status);
+                final Button btc = findViewById(R.id.butConnect);
+                final Button btf = findViewById(R.id.butFind);
+                if (mConnected) {
+                    btc.setText("Disconnect");
+                    btf.setClickable(false);
+                    btf.setTextColor(Color.GRAY);
+                } else {
+                    btc.setText("Connect");
+                    btf.setClickable(true);
+                    btf.setTextColor(Color.GREEN);
+                }
             }
         });
     }
 
-    private void displayData(String data) {
+    private void processData(String data) {
         if (data != null) {
-            final TextView tvb = findViewById(R.id.textInfo);
-            tvb.setText(data);
-        }
-    }
+            final TextView tvd = findViewById(R.id.textDebug);
 
-    /*
-    private void displayGattServices(List<BluetoothGattService> gattServices) {
-        if (gattServices == null)
-            return;
-        String uuid = null;
-        String serviceString = "unknown service";
-        String charaString = "unknown characteristic";
+            try {
+                JSONObject jo = new JSONObject(data);
+                JSONArray st;
+                if (jo.has("adc")) {
+                    st = jo.getJSONArray("adc");
+                    int numadc =  Integer.parseInt(st.getString(0));
+                    int valadc = Integer.parseInt(st.getString(1));
+                    switch (numadc) {
+                        case 0:
+                            v3v3 = valadc;
+                            tvd.append("v3v3= " + v3v3);
+                            int meterV = (valadc - battAdcMin) / battMeterDiv;
+                            if (meterV < 0) {
+                                meterV = 0;
+                            } else if (meterV > battMeterMax) {
+                                meterV = battMeterMax;
+                            }
+                            ProgressBar pb = findViewById(R.id.progressBatt);
+                            if (meterV > battMeterHigh) {
 
-        for (BluetoothGattService gattService : gattServices) {
-
-            uuid = gattService.getUuid().toString();
-            Log.d(TAG, "Found service : " + uuid);
-
-            serviceString = SampleGattAttributes.lookup(uuid);
-
-            if (serviceString != null) {
-                List<BluetoothGattCharacteristic> gattCharacteristics =
-                        gattService.getCharacteristics();
-                for (BluetoothGattCharacteristic gattCharacteristic : gattCharacteristics) {
-                    HashMap<String, String> currentCharaData = new HashMap<String, String>();
-                    uuid = gattCharacteristic.getUuid().toString();
-                    Log.d(TAG, "Found characteristic : " + uuid);
-                    charaString = SampleGattAttributes.lookup(uuid);
-                    if (charaString != null) {
-                        final TextView tvn = findViewById(R.id.serviceName);
-                        tvn.setText(charaString);
+                            }
+                            pb.setProgress(meterV);
+                            break;
+                        case 1:
+                            v6v = valadc;
+                            tvd.append("v6v= " + v6v);
+                            break;
+                        case 2:
+                            vP5 = valadc;
+                            tvd.append("vP5= " + vP5);
+                            break;
+                        case 3:
+                            vP6 = valadc;
+                            tvd.append("vP6= " + vP6);
                     }
-                    mNotifyCharacteristic = gattCharacteristic;
-                    return;
+                } else if (jo.has("ms")) {
+                    st = jo.getJSONArray("ms");
+
                 }
+            } catch (JSONException e) {
+                Log.d(TAG, "Cannot unpack JSON data");
             }
+            tvd.append(data);
         }
     }
-*/
+
 }
