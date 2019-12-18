@@ -419,28 +419,23 @@ public class MainActivity extends AppCompatActivity {
                             v3v3 = valadc / battK;
                             double perc = v3v3 / battMax;
                             int drawable;
-                            int color = Color.GREEN;
                             if (perc > 0.9) {
                                 drawable = R.drawable.ic_battery_90_black_24dp;
                             } else if (perc > 0.8) {
                                 drawable = R.drawable.ic_battery_80_black_24dp;
                             } else if (perc > 0.6) {
                                 drawable = R.drawable.ic_battery_60_black_24dp;
-                                color = Color.YELLOW;
                             } else if (perc > 0.5) {
-                                color = Color.YELLOW;
                                 drawable = R.drawable.ic_battery_50_black_24dp;
                             } else if (perc > 0.3) {
                                 drawable = R.drawable.ic_battery_30_black_24dp;
-                                color = Color.RED;
                             } else if (perc > 0.2) {
                                 drawable = R.drawable.ic_battery_20_black_24dp;
-                                color = Color.RED;
                             } else {
                                 drawable = R.drawable.ic_battery_alert_black_24dp;
-                                color = Color.RED;
                             }
                             actionBar.setIcon(drawable);
+                            tvd.append("v3v3= " + df2.format(v3v3) + "\n");
 
                             /*
                             //tvd.append("v3v3= " + df2.format(v3v3));
