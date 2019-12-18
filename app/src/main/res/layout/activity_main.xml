@@ -14,7 +14,11 @@
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintLeft_toLeftOf="parent"
         tools:layout_marginLeft="10dp"
-        android:text="Поиск BLE" />
+        android:drawableLeft="@drawable/ic_search_black_24dp"
+        android:drawableRight="@drawable/ic_bluetooth_searching_black_24dp"
+        android:drawableTint="@color/colorPrimary"
+        android:foregroundTint="@color/colorPrimary"
+        android:text="" />
 
     <TextView
         android:id="@+id/textLeName"

@@ -3,4 +3,11 @@
     <string name="found_devices">Найденные BLE устройства:</string>
     <string name="scan_proc">Ждите идет сканирование...</string>
     <string name="scan_fin">Сканирование завершено.</string>
+    <string name="msg_attention">Внимание!</string>
+    <string name="msg_batt_low">Батарея разряжена!</string>
+    <string name="msg_batt_over">Слишком большая нагрузка!</string>
+    <string name="msg_pwroff">Устройство выключено -</string>
+    <string name="msg_cause_butt">по нажатию кнопки.</string>
+    <string name="msg_cause_cmd">по команде.</string>
+    <string name="msg_cause_low">по разряду батареи.</string>
 </resources>
