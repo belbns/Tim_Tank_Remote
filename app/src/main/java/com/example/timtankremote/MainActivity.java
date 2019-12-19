@@ -25,8 +25,11 @@ import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.util.Log;
+import android.view.MotionEvent;
 import android.view.View;
+import android.view.animation.RotateAnimation;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -127,6 +130,10 @@ public class MainActivity extends AppCompatActivity {
     private double vP5 = 0;
     private double vP6 = 0;
 
+    private ImageView tank1;
+    private double mCurrAngle = 0;
+    private double mPrevAngle = 0;
+
     private ActionBar actionBar;
 
     @Override
@@ -154,6 +161,35 @@ public class MainActivity extends AppCompatActivity {
                     REQUEST_LOCATION_ENABLE_CODE);
         }
 
+        tank1 = (ImageView)findViewById(R.id.imgTank1);
+        tank1.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View view, MotionEvent motionEvent) {
+                final float xc = tank1.getWidth() / 2;
+                final float yc = tank1.getHeight() *2 / 3;
+
+                final float x = motionEvent.getX();
+                final float y = motionEvent.getY();
+
+                switch (motionEvent.getAction()) {
+                    case MotionEvent.ACTION_DOWN:
+                        tank1.clearAnimation();
+                        mCurrAngle = Math.toDegrees((Math.atan2(x - xc, yc - y)));
+                        break;
+                    case MotionEvent.ACTION_MOVE:
+                        mPrevAngle = mCurrAngle;
+                        mCurrAngle = Math.toDegrees(Math.atan2(x - xc, yc - y));
+                        animate(mPrevAngle, mCurrAngle, 0);
+                        System.out.println(mCurrAngle);
+                        break;
+                    case MotionEvent.ACTION_UP :
+                        mPrevAngle = mCurrAngle = 0;
+                        break;
+                }
+
+                return true;
+            }
+        });
 
         // Load SearchActivity for search BLE device
         final Button but_find = findViewById(R.id.butFind);
@@ -218,7 +254,34 @@ public class MainActivity extends AppCompatActivity {
             }
         }
     }
+/*
+    //@Override
+    public boolean onTouch(final View v, MotionEvent event) {
+        final float xc = tank1.getWidth() / 2;
+        final float yc = tank1.getHeight() / 2;
 
+        final float x = event.getX();
+        final float y = event.getY();
+
+        switch (event.getAction()) {
+            case MotionEvent.ACTION_DOWN:
+                tank1.clearAnimation();
+                mCurrAngle = Math.toDegrees((Math.atan2(x - xc, yc - y)));
+                break;
+            case MotionEvent.ACTION_MOVE:
+                mPrevAngle = mCurrAngle;
+                mCurrAngle = Math.toDegrees(Math.atan2(x - xc, yc - y));
+                animate(mPrevAngle, mCurrAngle, 0);
+                System.out.println(mCurrAngle);
+                break;
+            case MotionEvent.ACTION_UP :
+                mPrevAngle = mCurrAngle = 0;
+                break;
+        }
+
+        return true;
+    }
+*/
     @Override
     protected void onStart() {
         super.onStart();
@@ -274,6 +337,18 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         }
+    }
+
+    private void animate(double fromDegrees, double toDegrees, long durationMillis) {
+        final RotateAnimation rotate = new RotateAnimation((float) fromDegrees,
+                (float) toDegrees,
+                RotateAnimation.RELATIVE_TO_SELF, 0.5f,
+                RotateAnimation.RELATIVE_TO_SELF, 0.5f);
+        rotate.setDuration(durationMillis);
+        rotate.setFillEnabled(true);
+        rotate.setFillAfter(true);
+        tank1.startAnimation(rotate);
+        Log.d(TAG, "mCurrAngle= " + mCurrAngle);
     }
 
     private final ServiceConnection mServiceConnection = new ServiceConnection() {

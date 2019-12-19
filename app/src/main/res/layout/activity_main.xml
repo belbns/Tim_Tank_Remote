@@ -61,4 +61,14 @@
         app:layout_constraintRight_toRightOf="parent"
         app:layout_constraintTop_toBottomOf="@id/textInfo" />
 
+    <ImageView
+        android:id="@+id/imgTank1"
+        android:layout_width="102dp"
+        android:layout_height="255dp"
+        android:src="@drawable/tank1f"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>
