@@ -5,6 +5,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGattCharacteristic;
@@ -21,7 +22,10 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
+import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
+import android.graphics.drawable.LayerDrawable;
+import android.graphics.drawable.RotateDrawable;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.util.Log;
@@ -40,7 +44,11 @@ import org.json.JSONObject;
 
 import java.text.DecimalFormat;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Queue;
+import java.util.Timer;
+import java.util.TimerTask;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -98,22 +106,26 @@ public class MainActivity extends AppCompatActivity {
     private class Stepper {
         public int queueLen;
         public String state;
-        public int angle_set;
-        public int angle_real;
+        public double angle_set_pre;
+        public double angle_set;
+        public int angle_set_d;
+        public double angle_real;
+        public int angle_real_d;
         public Stepper() {
             state = "s";
-            queueLen = angle_real = angle_set = 0;
+            queueLen = angle_real_d = angle_set_d = 0;
+            angle_real = angle_set = angle_set_pre = 0;
         }
     }
 
-    private class Queues {
+    private class MobQueues {
         public int common;
         public int motors;
         public int stepper;
         public int servo;
         public int dist;
         public int leds;
-        public Queues() {
+        public MobQueues() {
             common = motors = stepper = servo = dist = leds = 0;
         }
     }
@@ -121,7 +133,7 @@ public class MainActivity extends AppCompatActivity {
     private Motors motors;
     private Servo servo;
     private Stepper stepper;
-    private Queues queues;
+    private MobQueues queues;
 
     private int Leds[];
     private int dist = 0;
@@ -130,12 +142,18 @@ public class MainActivity extends AppCompatActivity {
     private double vP5 = 0;
     private double vP6 = 0;
 
-    private ImageView tank1;
-    private double mCurrAngle = 0;
-    private double mPrevAngle = 0;
+    private ImageView tank_tr;
+    private ImageView tank_pa;
+    //private double towerCurrAngleDst = 0;
+    //private double towerPrevAngleDst = 0;
 
     private ActionBar actionBar;
 
+    Queue<String> queueToMobile = new LinkedList<String>();
+
+    private Timer timer;
+
+    @SuppressLint("ClickableViewAccessibility")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -161,29 +179,42 @@ public class MainActivity extends AppCompatActivity {
                     REQUEST_LOCATION_ENABLE_CODE);
         }
 
-        tank1 = (ImageView)findViewById(R.id.imgTank1);
-        tank1.setOnTouchListener(new View.OnTouchListener() {
+        queues = new MobQueues();
+        stepper = new Stepper();
+        tank_tr = (ImageView)findViewById(R.id.imgTankTr);
+
+        tank_tr.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View view, MotionEvent motionEvent) {
-                final float xc = tank1.getWidth() / 2;
-                final float yc = tank1.getHeight() *2 / 3;
+                //view.performClick();
+                final float xc = tank_tr.getWidth() / 2;
+                final float yc = tank_tr.getHeight() / 2;
 
                 final float x = motionEvent.getX();
                 final float y = motionEvent.getY();
 
                 switch (motionEvent.getAction()) {
                     case MotionEvent.ACTION_DOWN:
-                        tank1.clearAnimation();
-                        mCurrAngle = Math.toDegrees((Math.atan2(x - xc, yc - y)));
+                        tank_tr.clearAnimation();
                         break;
                     case MotionEvent.ACTION_MOVE:
-                        mPrevAngle = mCurrAngle;
-                        mCurrAngle = Math.toDegrees(Math.atan2(x - xc, yc - y));
-                        animate(mPrevAngle, mCurrAngle, 0);
-                        System.out.println(mCurrAngle);
+                        stepper.angle_set_pre = stepper.angle_set;
+                        //towerPrevAngleDst = towerCurrAngleDst;
+                        stepper.angle_set = Math.toDegrees(Math.atan2(x - xc, yc - y));
+                        if (stepper.angle_set > 75) {
+                            stepper.angle_set = 75;
+                        } else if (stepper.angle_set < -75) {
+                            stepper.angle_set = -75;
+                        }
+                        animate(true, stepper.angle_set_pre, stepper.angle_set, 0);
                         break;
                     case MotionEvent.ACTION_UP :
-                        mPrevAngle = mCurrAngle = 0;
+                        //stepper.angle_set = stepper.angle_set_pre = 0;
+                        int angle = (int) Math.round(stepper.angle_set * 256 / 180);
+                        if (stepper.angle_set_d != angle) {
+                            stepper.angle_set_d = angle;
+                            sendStepperCommand();
+                        }
                         break;
                 }
 
@@ -212,6 +243,8 @@ public class MainActivity extends AppCompatActivity {
                         registerReceiver(mGattUpdateReceiver, GattUpdateIntentFilter());
                         final boolean result = mBluetoothLEService.connect(mobAddress);
                         Log.d(TAG, "mBluetoothLEService - connect= " + result);
+                        startTimer();
+                        Log.d(TAG, "startTimer() ");
                     }
                     else {
                         mBluetoothLEService.disconnect();
@@ -219,6 +252,8 @@ public class MainActivity extends AppCompatActivity {
                         mConnected = false;
                         updateConnectionState();
                         Log.d(TAG, "mBluetoothLEService - disconnect");
+                        timer.cancel();
+                        timer.purge();
                     }
                 } else {
                     Log.d(TAG, "mBluetoothLEService is null! ");
@@ -254,34 +289,7 @@ public class MainActivity extends AppCompatActivity {
             }
         }
     }
-/*
-    //@Override
-    public boolean onTouch(final View v, MotionEvent event) {
-        final float xc = tank1.getWidth() / 2;
-        final float yc = tank1.getHeight() / 2;
 
-        final float x = event.getX();
-        final float y = event.getY();
-
-        switch (event.getAction()) {
-            case MotionEvent.ACTION_DOWN:
-                tank1.clearAnimation();
-                mCurrAngle = Math.toDegrees((Math.atan2(x - xc, yc - y)));
-                break;
-            case MotionEvent.ACTION_MOVE:
-                mPrevAngle = mCurrAngle;
-                mCurrAngle = Math.toDegrees(Math.atan2(x - xc, yc - y));
-                animate(mPrevAngle, mCurrAngle, 0);
-                System.out.println(mCurrAngle);
-                break;
-            case MotionEvent.ACTION_UP :
-                mPrevAngle = mCurrAngle = 0;
-                break;
-        }
-
-        return true;
-    }
-*/
     @Override
     protected void onStart() {
         super.onStart();
@@ -339,7 +347,24 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void animate(double fromDegrees, double toDegrees, long durationMillis) {
+    public void startTimer() {
+        timer = new Timer();
+        TimerTask timerTask = new TimerTask() {
+            @Override
+            public void run() {
+                if (mConnected) {
+                    String st = queueToMobile.poll();
+                    if (st != null) {
+                        mBluetoothLEService.sendMessage(st);
+                        Log.d(TAG, "Timer. sendMessage: " + st);
+                    }
+                }
+            }
+        };
+        timer.scheduleAtFixedRate(timerTask, 1000, 20);
+    }
+
+    private void animate(Boolean bg, double fromDegrees, double toDegrees, long durationMillis) {
         final RotateAnimation rotate = new RotateAnimation((float) fromDegrees,
                 (float) toDegrees,
                 RotateAnimation.RELATIVE_TO_SELF, 0.5f,
@@ -347,8 +372,15 @@ public class MainActivity extends AppCompatActivity {
         rotate.setDuration(durationMillis);
         rotate.setFillEnabled(true);
         rotate.setFillAfter(true);
-        tank1.startAnimation(rotate);
-        Log.d(TAG, "mCurrAngle= " + mCurrAngle);
+
+        ImageView iv;
+        if (bg) {
+            iv = findViewById(R.id.imgTankTr);
+        } else {
+            iv = findViewById(R.id.imgTankPa);
+        }
+        iv.startAnimation(rotate);
+        //Log.d(TAG, "Rotate Angle= " + stepper.angle_set);
     }
 
     private final ServiceConnection mServiceConnection = new ServiceConnection() {
@@ -434,12 +466,15 @@ public class MainActivity extends AppCompatActivity {
             startActivityForResult(intent, REQUEST_BLUETOOTH_ENABLE_CODE);
         }
 
-        registerReceiver(mGattUpdateReceiver, GattUpdateIntentFilter());
+        if (mBluetoothLEService != null) {
+            registerReceiver(mGattUpdateReceiver, GattUpdateIntentFilter());
 
-        if (mConnPaused && (mBluetoothLEService != null)) {
-            final boolean result = mBluetoothLEService.connect(bluetoothDevice.getAddress());
-            mConnPaused = false;
-            Log.d(TAG, "Reconnect to " + bluetoothDevice.getAddress() + ", result=" + result);
+            if (mConnPaused) {
+                final boolean result = mBluetoothLEService.connect(bluetoothDevice.getAddress());
+                mConnPaused = false;
+                Log.d(TAG, "Reconnect to " + bluetoothDevice.getAddress() +
+                        ", result=" + result);
+            }
         }
     }
 
@@ -449,14 +484,18 @@ public class MainActivity extends AppCompatActivity {
         if (mConnected) {
             unregisterReceiver(mGattUpdateReceiver);
             mConnPaused = true;
+            timer.cancel();
+            timer.purge();
         }
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        unbindService(mServiceConnection);
-        mBluetoothLEService = null;
+        //unbindService(mServiceConnection);
+        //mBluetoothLEService = null;
+        //timer.cancel();
+        //timer.purge();
     }
 
     private void updateConnectionState() {
@@ -473,7 +512,7 @@ public class MainActivity extends AppCompatActivity {
                     btc.setText("Connect");
                     btf.setClickable(true);
                     btf.setTextColor(Color.GREEN);
-                }
+               }
             }
         });
     }
@@ -510,7 +549,7 @@ public class MainActivity extends AppCompatActivity {
                                 drawable = R.drawable.ic_battery_alert_black_24dp;
                             }
                             actionBar.setIcon(drawable);
-                            tvd.append("v3v3= " + df2.format(v3v3) + "\n");
+                            tvd.setText("Ubat = " + df2.format(v3v3) + "\n");
 
                             /*
                             //tvd.append("v3v3= " + df2.format(v3v3));
@@ -627,4 +666,12 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+
+    private void sendStepperCommand() {
+        final String st = "{\"st\":[\"t\"," + stepper.angle_set_d + "]}\n";
+        if (mConnected) {
+            queueToMobile.offer(st);
+        }
+        //Log.d(TAG, "sendStepperCommand(): " + st);
+    }
 }
