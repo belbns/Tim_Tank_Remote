@@ -347,6 +347,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    // sending messages from queue via BLE to mobile platform
     public void startTimer() {
         timer = new Timer();
         TimerTask timerTask = new TimerTask() {
