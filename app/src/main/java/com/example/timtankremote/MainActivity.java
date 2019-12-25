@@ -590,7 +590,7 @@ public class MainActivity extends AppCompatActivity {
                         }
                         double pre = stepper.angle_real;
                         stepper.angle_real = 360.0 * stepper.angle_real_d / 512.0;
-                        animate(false, pre, stepper.angle_real, 500);
+                        animate(false, pre, stepper.angle_real, 0);
                     }
                 } else if (jo.has("servo")) {
                     servo.angle_real = Integer.parseInt(jo.getString("servo"));
