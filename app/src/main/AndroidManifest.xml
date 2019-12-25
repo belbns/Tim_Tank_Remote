@@ -26,9 +26,12 @@
             android:enabled="true"
             android:exported="true" />
 
-        <activity android:name=".SearchActivity" android:noHistory="true"></activity>
+        <activity android:name=".SearchActivity"
+            android:screenOrientation="portrait"
+            android:noHistory="true">
+        </activity>
 
-        <activity android:name=".MainActivity">
+        <activity android:name=".MainActivity" android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

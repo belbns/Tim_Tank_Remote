@@ -199,17 +199,19 @@ public class MainActivity extends AppCompatActivity {
                         break;
                     case MotionEvent.ACTION_MOVE:
                         stepper.angle_set_pre = stepper.angle_set;
-                        //towerPrevAngleDst = towerCurrAngleDst;
-                        stepper.angle_set = Math.toDegrees(Math.atan2(x - xc, yc - y));
-                        if (stepper.angle_set > 75) {
-                            stepper.angle_set = 75;
-                        } else if (stepper.angle_set < -75) {
-                            stepper.angle_set = -75;
+                        if ((Math.abs(x - xc) < 40) && (Math.abs(y - yc) < 40)) {
+                            stepper.angle_set = 0;
+                        } else {
+                            stepper.angle_set = Math.toDegrees(Math.atan2(x - xc, yc - y));
+                            if (stepper.angle_set > 75) {
+                                stepper.angle_set = 75;
+                            } else if (stepper.angle_set < -75) {
+                                stepper.angle_set = -75;
+                            }
                         }
                         animate(true, stepper.angle_set_pre, stepper.angle_set, 0);
                         break;
                     case MotionEvent.ACTION_UP :
-                        //stepper.angle_set = stepper.angle_set_pre = 0;
                         int angle = (int) Math.round(stepper.angle_set * 256 / 180);
                         if (stepper.angle_set_d != angle) {
                             stepper.angle_set_d = angle;
@@ -551,26 +553,6 @@ public class MainActivity extends AppCompatActivity {
                             }
                             actionBar.setIcon(drawable);
                             tvd.setText("Ubat = " + df2.format(v3v3) + "\n");
-
-                            /*
-                            //tvd.append("v3v3= " + df2.format(v3v3));
-                            int meterV = (int) Math.round((v3v3 - battMin) * 100);
-                            if (meterV < 0) {
-                                meterV = 0;
-                            } else if (meterV > battMeterMax) {
-                                meterV = battMeterMax;
-                            }
-                            ProgressBar pb = findViewById(R.id.progressBatt);
-                            int col = Color.GREEN;
-                            if (v3v3 < battLow) {
-                                col = Color.RED;
-                            } else if (v3v3 < battHigh) {
-                                col = Color.YELLOW;
-                            }
-                            pb.setProgressTintList(ColorStateList.valueOf(col));
-                            pb.setProgress(meterV);
-
-                             */
                             break;
                         case 1:
                             v6v = valadc / battK;
@@ -600,7 +582,15 @@ public class MainActivity extends AppCompatActivity {
                     st = jo.getJSONArray("sv");
                     int num = Integer.parseInt(st.getString(0));
                     if (num == 0) {
-                        stepper.angle_real = Integer.parseInt(st.getString(2));
+                        int angle_i = Integer.parseInt(st.getString(2));
+                        if (angle_i > 255) {
+                            stepper.angle_real_d = -(512 - angle_i);
+                        } else {
+                            stepper.angle_real_d = angle_i;
+                        }
+                        double pre = stepper.angle_real;
+                        stepper.angle_real = 360.0 * stepper.angle_real_d / 512.0;
+                        animate(false, pre, stepper.angle_real, 500);
                     }
                 } else if (jo.has("servo")) {
                     servo.angle_real = Integer.parseInt(jo.getString("servo"));
