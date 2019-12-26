@@ -35,8 +35,10 @@ import android.view.animation.RotateAnimation;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
+import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.ToggleButton;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -130,6 +132,37 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+
+    private class MySeekBarListener implements SeekBar.OnSeekBarChangeListener {
+        public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
+            seekBar.setProgress(i);
+            final String st = Integer.toString(i - 3);
+            switch (seekBar.getId())
+            {
+                case R.id.seekBarLeft:
+                    /*Toast.makeText(MainActivity.this,
+                            "Left Seekbar value= " + i, Toast.LENGTH_SHORT).show(); */
+                    final TextView tvl = findViewById(R.id.textSeekLeft);
+                    tvl.setText(st);
+                    break;
+                case R.id.seekBarRight:
+                    final TextView tvr = findViewById(R.id.textSeekRight);
+                    tvr.setText(st);
+                    break;
+            }
+            sendMotorsCommand();
+        }
+
+        public void onStartTrackingTouch(SeekBar seekBar) {
+
+        }
+
+        public void onStopTrackingTouch(SeekBar seekBar) {
+
+        }
+
+    }
+
     private Motors motors;
     private Servo servo;
     private Stepper stepper;
@@ -143,9 +176,7 @@ public class MainActivity extends AppCompatActivity {
     private double vP6 = 0;
 
     private ImageView tank_tr;
-    private ImageView tank_pa;
-    //private double towerCurrAngleDst = 0;
-    //private double towerPrevAngleDst = 0;
+    //private ImageView tank_pa;
 
     private ActionBar actionBar;
 
@@ -181,6 +212,8 @@ public class MainActivity extends AppCompatActivity {
 
         queues = new MobQueues();
         stepper = new Stepper();
+        motors = new Motors();
+
         tank_tr = (ImageView)findViewById(R.id.imgTankTr);
 
         tank_tr.setOnTouchListener(new View.OnTouchListener() {
@@ -263,6 +296,12 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        final SeekBar seekBarLeft = findViewById(R.id.seekBarLeft);
+        final SeekBar seekBarRight = findViewById(R.id.seekBarRight);
+        MySeekBarListener mySeekBarListener = new MySeekBarListener();
+        seekBarLeft.setOnSeekBarChangeListener(mySeekBarListener);
+        seekBarRight.setOnSeekBarChangeListener(mySeekBarListener);
+
         but_connect.setClickable(false);
         but_connect.setTextColor(Color.GRAY);
 
@@ -291,6 +330,7 @@ public class MainActivity extends AppCompatActivity {
             }
         }
     }
+
 
     @Override
     protected void onStart() {
@@ -665,4 +705,13 @@ public class MainActivity extends AppCompatActivity {
         }
         //Log.d(TAG, "sendStepperCommand(): " + st);
     }
+
+    private void sendMotorsCommand() {
+        final String st = "{\"st\":[\"t\"," + stepper.angle_set_d + "]}\n";
+        if (mConnected) {
+            queueToMobile.offer(st);
+        }
+        //Log.d(TAG, "sendStepperCommand(): " + st);
+    }
+
 }
