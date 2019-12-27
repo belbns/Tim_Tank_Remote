@@ -205,6 +205,8 @@ public class MainActivity extends AppCompatActivity {
 
     private Timer timer;
 
+    private static long sayBackPress;
+
     @SuppressLint("ClickableViewAccessibility")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -254,7 +256,7 @@ public class MainActivity extends AppCompatActivity {
                         break;
                     case MotionEvent.ACTION_MOVE:
                         stepper.angle_set_pre = stepper.angle_set;
-                        if ((Math.abs(x - xc) < 40) && (Math.abs(y - yc) < 40)) {
+                        if ((Math.abs(x - xc) < 80) && (Math.abs(y - yc) < 80)) {
                             stepper.angle_set = 0;
                         } else {
                             stepper.angle_set = Math.toDegrees(Math.atan2(x - xc, yc - y));
@@ -355,6 +357,18 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+
+    @Override
+    public void onBackPressed() {
+        if ((sayBackPress + 2000) > System.currentTimeMillis()) {
+            mBluetoothLEService.disconnect();
+            super.onBackPressed();
+        } else {
+            Toast.makeText(MainActivity.this,
+                    "Ещё раз для выхода!", Toast.LENGTH_SHORT).show();
+            sayBackPress = System.currentTimeMillis();
+        }
+    }
 
     @Override
     protected void onStart() {
@@ -724,8 +738,7 @@ public class MainActivity extends AppCompatActivity {
                     Log.d(TAG, "Power off - " + s);
                 } else if (jo.has("dbg")) {
                     String s = jo.getString("dbg");
-                    TextView tv = findViewById(R.id.textDebug);
-                    tv.append(s);
+                    tvd.append(s);
                 }
             } catch (JSONException e) {
                 Log.d(TAG, "Cannot unpack JSON data");
