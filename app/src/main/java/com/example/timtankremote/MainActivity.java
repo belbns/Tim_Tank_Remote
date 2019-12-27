@@ -136,21 +136,42 @@ public class MainActivity extends AppCompatActivity {
     private class MySeekBarListener implements SeekBar.OnSeekBarChangeListener {
         public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
             seekBar.setProgress(i);
-            final String st = Integer.toString(i - 3);
+            int v = i - 3;
+            //final String st = Integer.toString(v);
+            boolean fl_send = false;
+
             switch (seekBar.getId())
             {
                 case R.id.seekBarLeft:
                     /*Toast.makeText(MainActivity.this,
                             "Left Seekbar value= " + i, Toast.LENGTH_SHORT).show(); */
-                    final TextView tvl = findViewById(R.id.textSeekLeft);
-                    tvl.setText(st);
+                    //final TextView tvl = findViewById(R.id.textSeekLeft);
+                    //tvl.setText(st);
+                    if (motors.vleft_set != v) {
+                        motors.vleft_set = v;
+                        fl_send = true;
+                    }
                     break;
                 case R.id.seekBarRight:
-                    final TextView tvr = findViewById(R.id.textSeekRight);
-                    tvr.setText(st);
+                    //final TextView tvr = findViewById(R.id.textSeekRight);
+                    //tvr.setText(st);
+                    if (motors.vright_set != v) {
+                        motors.vright_set = v;
+                        fl_send = true;
+                    }
+                    break;
+                case R.id.seekBarGun:
+                    int sangle = 30 * i;
+                    if (servo.angle_set != sangle) {
+                        servo.angle_set = sangle;
+                        sendServoCommand();
+                    }
                     break;
             }
-            sendMotorsCommand();
+
+            if (fl_send) {
+                sendMotorsCommand();
+            }
         }
 
         public void onStartTrackingTouch(SeekBar seekBar) {
@@ -213,6 +234,7 @@ public class MainActivity extends AppCompatActivity {
         queues = new MobQueues();
         stepper = new Stepper();
         motors = new Motors();
+        servo = new Servo();
 
         tank_tr = (ImageView)findViewById(R.id.imgTankTr);
 
@@ -298,9 +320,11 @@ public class MainActivity extends AppCompatActivity {
 
         final SeekBar seekBarLeft = findViewById(R.id.seekBarLeft);
         final SeekBar seekBarRight = findViewById(R.id.seekBarRight);
+        final SeekBar seekBarGun = findViewById(R.id.seekBarGun);
         MySeekBarListener mySeekBarListener = new MySeekBarListener();
         seekBarLeft.setOnSeekBarChangeListener(mySeekBarListener);
         seekBarRight.setOnSeekBarChangeListener(mySeekBarListener);
+        seekBarGun.setOnSeekBarChangeListener(mySeekBarListener);
 
         but_connect.setClickable(false);
         but_connect.setTextColor(Color.GRAY);
@@ -370,7 +394,7 @@ public class MainActivity extends AppCompatActivity {
                 if (bluetoothDevice != null) {
                     final TextView tvl = findViewById(R.id.textLeName);
                     tvl.setText(nameValue);
-                    final TextView tvi = findViewById(R.id.textInfo);
+                    final TextView tvi = findViewById(R.id.textDebug);
                     tvi.setText(addressValue);
                     // save device to the shared preferences
                     SharedPreferences.Editor editor =sharedPreferences.edit();
@@ -614,10 +638,18 @@ public class MainActivity extends AppCompatActivity {
                     } else if (s.equals("t") || s.equals("r") || s.equals("l")) {
                         motors.vleft_real = Integer.parseInt(st.getString(1));
                         motors.vright_real = Integer.parseInt(st.getString(2));
+                        if ((motors.vleft_real != motors.vleft_set) ||
+                                (motors.vright_real != motors.vright_set)) {
+                            sendMotorsCommand();    // probably, status was lost
+                        }
                     } else if (s.equals("f") || s.equals("b")) {
                         motors.vleft_real = motors.vright_real =
                                 Integer.parseInt(st.getString(1));
                     }
+                    final TextView tvl = findViewById(R.id.textSeekLeft);
+                    tvl.setText(Integer.toString(motors.vleft_real));
+                    final TextView tvr = findViewById(R.id.textSeekRight);
+                    tvr.setText(Integer.toString(motors.vright_real));
                 } else if (jo.has("sv")) {
                     st = jo.getJSONArray("sv");
                     int num = Integer.parseInt(st.getString(0));
@@ -634,6 +666,11 @@ public class MainActivity extends AppCompatActivity {
                     }
                 } else if (jo.has("servo")) {
                     servo.angle_real = Integer.parseInt(jo.getString("servo"));
+                    final TextView tvs = findViewById(R.id.textGun);
+                    tvs.setText(Integer.toString(servo.angle_real / 30 - 3));
+                    if (servo.angle_real != servo.angle_set) {
+                        sendServoCommand();
+                    }
                 } else if (jo.has("dist")) {
                     dist = Integer.parseInt(jo.getString("dist"));
                 } else if (jo.has("leds")) {
@@ -687,7 +724,7 @@ public class MainActivity extends AppCompatActivity {
                     Log.d(TAG, "Power off - " + s);
                 } else if (jo.has("dbg")) {
                     String s = jo.getString("dbg");
-                    TextView tv = findViewById(R.id.textInfo);
+                    TextView tv = findViewById(R.id.textDebug);
                     tv.append(s);
                 }
             } catch (JSONException e) {
@@ -707,11 +744,21 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void sendMotorsCommand() {
-        final String st = "{\"st\":[\"t\"," + stepper.angle_set_d + "]}\n";
+        final String st =
+                "{\"mot\":[\"t\"," + motors.vleft_set + "," + motors.vright_set + "]}\n";
         if (mConnected) {
             queueToMobile.offer(st);
         }
-        //Log.d(TAG, "sendStepperCommand(): " + st);
+        //Log.d(TAG, "sendSMotorsCommand(): " + st);
+    }
+
+    private void sendServoCommand() {
+        final String st =
+                "{\"servo\":[\"s\"," + servo.angle_set + "]}\n";
+        if (mConnected) {
+            queueToMobile.offer(st);
+        }
+        //Log.d(TAG, "sendSMotorsCommand(): " + st);
     }
 
 }

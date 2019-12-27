@@ -42,16 +42,6 @@
         tools:layout_editor_absoluteY="27dp" />
 
     <TextView
-        android:id="@+id/textInfo"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        app:layout_constraintTop_toBottomOf="@id/butFind"
-        app:layout_constraintLeft_toLeftOf="parent"
-        tools:layout_marginLeft="10dp"
-        tools:layout_marginTop="20dp"
-        android:text="---" />
-
-    <TextView
         android:id="@+id/textDebug"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -59,7 +49,40 @@
         tools:layout_marginTop="20dp"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/textInfo" />
+        app:layout_constraintTop_toBottomOf="@id/textLeName" />
+
+    <FrameLayout
+        android:id="@+id/frameGun"
+        app:layout_constraintLeft_toLeftOf="@id/imgTankPa"
+        app:layout_constraintTop_toBottomOf="@id/butConnect"
+        android:layout_marginLeft="160dp"
+        android:layout_marginTop="40dp"
+        android:layout_width="180dp"
+        android:layout_height="72dp"
+        android:rotation="270">
+        <SeekBar
+            android:id="@+id/seekBarGun"
+            android:layout_height="48dp"
+            android:layout_width="160dp"
+            android:tickMark="@drawable/seekbar_gun_tick"
+            android:thumb="@drawable/seekbar_gun_thumb"
+            android:progressDrawable="@drawable/seekbar_gun_progress"
+            android:max="6"
+            android:progress="3" />
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/textGun"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text="0"
+        android:textSize="24dp"
+        android:textColor="@color/colorAccent"
+        app:layout_constraintTop_toBottomOf="@id/frameGun"
+        app:layout_constraintLeft_toLeftOf="@id/frameGun"
+        app:layout_constraintRight_toRightOf="@id/frameGun"
+        android:layout_marginTop="40dp"/>
 
     <ImageView
         android:id="@+id/imgTankTr"
@@ -114,7 +137,7 @@
         android:layout_width="200dp"
         android:layout_height="72dp"
         app:layout_constraintTop_toBottomOf="@id/imgTankPa"
-        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintLeft_toLeftOf="parent"
         android:rotation="270">
 
         <SeekBar
@@ -125,7 +148,8 @@
             android:layout_height="64dp"
             android:layout_width="170dp"
             android:max="6"
-            android:progress="3" />
+            android:progress="3"
+            />
     </FrameLayout>
 
     <FrameLayout
@@ -133,7 +157,7 @@
         android:layout_width="200dp"
         android:layout_height="72dp"
         app:layout_constraintTop_toBottomOf="@id/imgTankPa"
-        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
         android:rotation="270">
 
         <SeekBar
@@ -144,8 +168,8 @@
             android:layout_height="64dp"
             android:layout_width="170dp"
             android:max="6"
-            android:progress="3"
-            />
+            android:progress="3" />
     </FrameLayout>
+
 
 </androidx.constraintlayout.widget.ConstraintLayout>
