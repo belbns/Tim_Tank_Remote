@@ -13,18 +13,24 @@
         android:layout_height="wrap_content"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintLeft_toLeftOf="parent"
-        tools:layout_marginTop="20dp"
-        tools:layout_marginLeft="20dp"
-        android:text="Сканировать" />
+        android:layout_marginTop="10dp"
+        android:layout_marginLeft="20dp"
+        android:text=""
+        android:drawableRight="@drawable/ic_bluetooth_searching_orange_48dp"
+        android:drawableLeft="@drawable/ic_youtube_searched_for_orange_48dp"
+        android:background="@drawable/butt_active"/>
 
     <Button
         android:id="@+id/butExit"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        app:layout_constraintTop_toTopOf="@id/butSearch"
+        app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintRight_toRightOf="parent"
-        tools:layout_marginRight="20dp"
-        android:text="Отменить" />
+        android:layout_marginTop="10dp"
+        android:layout_marginRight="20dp"
+        android:text=""
+        android:drawableLeft="@drawable/ic_close_orange_48dp"
+        android:background="@drawable/butt_active"/>
 
     <TextView
         android:id="@+id/textList"

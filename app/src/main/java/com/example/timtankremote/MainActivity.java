@@ -503,6 +503,7 @@ public class MainActivity extends AppCompatActivity {
         if (BluetoothLEService.ACTION_GATT_CONNECTED.equals(action)) {
             mConnected = true;
             updateConnectionState();
+            sendCheckCommand(false);
         } else if (BluetoothLEService.ACTION_GATT_DISCONNECTED.equals(action)) {
             mConnected = false;
             updateConnectionState();
@@ -588,10 +589,12 @@ public class MainActivity extends AppCompatActivity {
                 if (mConnected) {
                     btc.setText("Disconnect");
                     btf.setClickable(false);
+                    btf.setBackgroundResource(R.drawable.butt_nonactive);
                     btf.setTextColor(Color.GRAY);
                 } else {
                     btc.setText("Connect");
                     btf.setClickable(true);
+                    btf.setBackgroundResource(R.drawable.butt_active);
                     btf.setTextColor(Color.GREEN);
                }
             }
@@ -614,6 +617,24 @@ public class MainActivity extends AppCompatActivity {
                             v3v3 = valadc / battK;
                             double perc = v3v3 / battMax;
                             int drawable;
+                            if (v3v3 > 12.3) {
+                                drawable = R.drawable.ic_battery_full_black_24dp;
+                            } else if (v3v3 > 12.1) {
+                                drawable = R.drawable.ic_battery_90_black_24dp;
+                            } else if (v3v3 > 11.9) {
+                                drawable = R.drawable.ic_battery_80_black_24dp;
+                            } else if (v3v3 > 11.7) {
+                                drawable = R.drawable.ic_battery_60_black_24dp;
+                            } else if (v3v3 > 11.5) {
+                                drawable = R.drawable.ic_battery_50_black_24dp;
+                            } else if (v3v3 > 11.3) {
+                                drawable = R.drawable.ic_battery_30_black_24dp;
+                            } else if (v3v3 > 11.1){
+                                drawable = R.drawable.ic_battery_20_black_24dp;
+                            } else {
+                                drawable = R.drawable.ic_battery_alert_black_24dp;
+                            }
+                            /*
                             if (perc > 0.9) {
                                 drawable = R.drawable.ic_battery_90_black_24dp;
                             } else if (perc > 0.8) {
@@ -629,6 +650,8 @@ public class MainActivity extends AppCompatActivity {
                             } else {
                                 drawable = R.drawable.ic_battery_alert_black_24dp;
                             }
+                            */
+
                             actionBar.setIcon(drawable);
                             tvd.setText("Ubat = " + df2.format(v3v3) + "\n");
                             break;
@@ -743,7 +766,6 @@ public class MainActivity extends AppCompatActivity {
             } catch (JSONException e) {
                 Log.d(TAG, "Cannot unpack JSON data");
             }
-            //tvd.append(data);
         }
     }
 
@@ -768,6 +790,20 @@ public class MainActivity extends AppCompatActivity {
     private void sendServoCommand() {
         final String st =
                 "{\"servo\":[\"s\"," + servo.angle_set + "]}\n";
+        if (mConnected) {
+            queueToMobile.offer(st);
+        }
+        //Log.d(TAG, "sendSMotorsCommand(): " + st);
+    }
+
+    private void sendCheckCommand(boolean chk_all) {
+        String st = "{\"check\":";
+        if (chk_all) {
+            st = st + "true";
+        } else {
+            st = st + "false";
+        }
+        st = st + "}\n";
         if (mConnected) {
             queueToMobile.offer(st);
         }

@@ -55,7 +55,7 @@ public class SearchActivity extends AppCompatActivity {
         mBluetoothAdapter = bluetoothManager.getAdapter();
 
         // button Start Scan
-        final Button but_search = (Button) findViewById(R.id.butSearch);
+        final Button but_search = findViewById(R.id.butSearch);
         but_search.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -64,7 +64,7 @@ public class SearchActivity extends AppCompatActivity {
             }
         });
 
-        final Button but_exit = (Button) findViewById(R.id.butExit);
+        final Button but_exit = findViewById(R.id.butExit);
         but_exit.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -147,13 +147,19 @@ public class SearchActivity extends AppCompatActivity {
     }
 
     private void setLocalViews(boolean scan) {
-        findViewById(R.id.butSearch).setClickable(!scan);
-        findViewById(R.id.butExit).setClickable(!scan);
+        Button bts = findViewById(R.id.butSearch);
+        bts.setClickable(!scan);
+        Button bex = findViewById(R.id.butExit);
+        bex.setClickable(!scan);
         TextView ts = findViewById(R.id.textScan);
         if (scan) {
             ts.setText(R.string.scan_proc);
+            bts.setBackgroundResource(R.drawable.butt_nonactive);
+            bex.setBackgroundResource(R.drawable.butt_nonactive);
         } else {
             ts.setText(R.string.scan_fin);
+            bts.setBackgroundResource(R.drawable.butt_active);
+            bex.setBackgroundResource(R.drawable.butt_active);
         }
     }
 
